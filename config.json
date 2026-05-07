@@ -1,0 +1,228 @@
+{
+	"sampling": {
+		"time": 5,
+		"number": 1
+	},
+	"ADCs": {
+		"1256": true,
+		"1115A": false,
+		"1115B": false,
+		"1115C": false,
+		"1115D": false
+	},
+	"GFX": [
+		true,
+		true,
+		true
+	],
+	"time": {
+		"abs": true,
+		"abs_raw": true,
+		"rel_h": true,
+		"rel_s": true
+	},
+	"loop": {
+		"s0": {
+			"title": "temp",
+			"active": true,
+			"log_raw": true,
+			"log_4-20": true,
+			"log_conv": true,
+			"min": 0,
+			"max": 400,
+			"cal": [
+				-0.0269068,
+				8.2708868
+			]
+		},
+		"s1": {
+			"title": "ret_i",
+			"active": false,
+			"log_raw": true,
+			"log_4-20": true,
+			"log_conv": true,
+			"min": 0,
+			"max": 200,
+			"cal": [
+				0.036027862,
+				9.182260412
+			]
+		},
+		"s2": {
+			"title": "ret_v",
+			"active": false,
+			"log_raw": true,
+			"log_4-20": true,
+			"log_conv": true,
+			"min": 0,
+			"max": 4.096,
+			"cal": [
+				0.040873111,
+				9.184844664
+			]
+		},
+		"s3": {
+			"title": "extra0",
+			"active": true,
+			"log_raw": true,
+			"log_4-20": true,
+			"log_conv": true,
+			"min": 0,
+			"max": 200,
+			"cal": [
+				-0.0269068,
+				8.2708868
+			]
+		},
+		"s4": {
+			"title": "extra1",
+			"active": true,
+			"log_raw": true,
+			"log_4-20": true,
+			"log_conv": true,
+			"min": 0,
+			"max": 12,
+			"cal": [
+				-0.0269068,
+				8.2708868
+			]
+		},
+		"s5": {
+			"title": "den",
+			"active": false,
+			"log_raw": true,
+			"log_4-20": true,
+			"log_conv": false,
+			"min": 1,
+			"max": 1.5,
+			"cal": [
+				-0.0269068,
+				8.2708868
+			]
+		},
+		"s6": {
+			"title": "cond",
+			"active": false,
+			"log_raw": true,
+			"log_4-20": true,
+			"log_conv": true,
+			"min": 0,
+			"max": 14,
+			"cal": [
+				-0.0269068,
+				8.2708868
+			]
+		},
+		"s7": {
+			"title": "pH",
+			"active": false,
+			"log_raw": true,
+			"log_4-20": true,
+			"log_conv": true,
+			"min": 0,
+			"max": 200,
+			"cal": [
+				-0.0269068,
+				8.2708868
+			]
+		}
+	},
+	"volt": {
+		"x0": {
+			"title": "L1",
+			"low": false,
+			"log_raw": true,
+			"log_conv": true,
+			"cal": [
+				12,
+				10,
+				0,
+				0
+			]
+		},
+		"x1": {
+			"title": "L2",
+			"low": false,
+			"log_raw": true,
+			"log_conv": true,
+			"cal": [
+				12,
+				10,
+				0,
+				0
+			]
+		},
+		"x2": {
+			"title": "V",
+			"low": false,
+			"log_raw": true,
+			"log_conv": true,
+			"cal": [
+				12,
+				10,
+				0,
+				0
+			]
+		},
+		"x3": {
+			"title": "I",
+			"low": false,
+			"log_raw": true,
+			"log_conv": true,
+			"cal": [
+				12,
+				10,
+				0,
+				0
+			]
+		},
+		"x4": {
+			"title": "XX",
+			"low": false,
+			"log_raw": false,
+			"log_conv": false,
+			"cal": [
+				12,
+				10,
+				0,
+				0
+			]
+		},
+		"x5": {
+			"title": "XX",
+			"low": false,
+			"log_raw": false,
+			"log_conv": false,
+			"cal": [
+				12,
+				10,
+				0,
+				0
+			]
+		},
+		"x6": {
+			"title": "XX",
+			"low": false,
+			"log_raw": false,
+			"log_conv": false,
+			"cal": [
+				12,
+				10,
+				0,
+				0
+			]
+		},
+		"x7": {
+			"title": "XX",
+			"low": false,
+			"log_raw": false,
+			"log_conv": false,
+			"cal": [
+				12,
+				10,
+				0,
+				0
+			]
+		}
+	}
+}

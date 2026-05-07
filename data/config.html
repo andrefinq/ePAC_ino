@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Configurações - ePAC</title>
+    <style>
+        body{font-family:Arial,sans-serif;margin:0;padding:0;}
+        .navbar{background-color:#333;overflow:hidden;}
+        .navbar a{float:left;display:block;color:white;text-align:center;padding:14px 16px;text-decoration:none;}
+        .navbar a:hover{background-color:#ddd;color:black;}
+        .content{padding:20px;max-width:800px;margin:auto;}
+        form{background-color:#f9f9f9;border:1px solid #ddd;border-radius:8px;padding:20px;}
+        form h3{border-bottom:1px solid #ccc;padding-bottom:5px;margin-top:20px;}
+        form label{display:inline-block;width:250px;margin:5px 0;}
+        input[type="number"]{width:100px;padding:5px;}
+        input[type="checkbox"]{margin-right:10px;}
+        button{background-color:#007bff;color:white;border:none;padding:12px 20px;border-radius:4px;cursor:pointer;font-size:16px;margin-top:20px;}
+        button:hover{background-color:#0056b3;}
+        .channel-links a{display:inline-block;margin:10px 10px 10px 0;padding:10px;background-color:#6c757d;color:white;text-decoration:none;border-radius:4px;}
+        .channel-links a:hover{background-color:#5a6268;}
+    </style>
+</head>
+<body>
+    <div class='navbar'>
+        <a href='/home'>Home</a>
+        <a href='/status'>Status</a>
+        <a href='/files'>Arquivos</a>
+        <a href='/config'>Configurações</a>
+		<a href='/wifi'>WiFi</a>
+        <a href='/'>Sair</a>
+    </div>
+
+    <div class='content'>
+        <h1>Configurações Gerais</h1>
+        
+        <form action="/config_save" method="POST">
+            <h3>Amostragem</h3>
+            <label for="s_time">Intervalo (segundos):</label>
+            <input type="number" id="s_time" name="s_time" value="%%s_time%%" required>
+            <br>
+            <label for="s_num">Número de Amostras (por intervalo):</label>
+            <input type="number" id="s_num" name="s_num" value="%%s_num%%" required>
+
+            <h3>ADCs Ativos</h3>
+            <input type="checkbox" id="a_1256" name="a_1256" value="true" %%a_1256_checked%%>
+            <label for="a_1256">ADS1256 (Loops 4-20mA)</label><br>
+            <input type="checkbox" id="a_1115A" name="a_1115A" value="true" %%a_1115A_checked%%>
+            <label for="a_1115A">ADS1115-A (Volt 0-1)</label><br>
+            <input type="checkbox" id="a_1115B" name="a_1115B" value="true" %%a_1115B_checked%%>
+            <label for="a_1115B">ADS1115-B (Volt 2-3)</label><br>
+            <input type="checkbox" id="a_1115C" name="a_1115C" value="true" %%a_1115C_checked%%>
+            <label for="a_1115C">ADS1115-C (Volt 4-5)</label><br>
+            <input type="checkbox" id="a_1115D" name="a_1115D" value="true" %%a_1115D_checked%%>
+            <label for="a_1115D">ADS1115-D (Volt 6-7)</label><br>
+
+            <h3>Opções de Log de Tempo</h3>
+            <input type="checkbox" id="time_abs" name="time_abs" value="true" %%time_abs_checked%%>
+            <label for="time_abs">Log Tempo Absoluto (Y-M-D H:M:S)</label><br>
+            <input type="checkbox" id="time_abs_raw" name="time_abs_raw" value="true" %%time_abs_raw_checked%%>
+            <label for="time_abs_raw">Log Tempo Absoluto (Raw Unix)</label><br>
+            <input type="checkbox" id="time_rel_h" name="time_rel_h" value="true" %%time_rel_h_checked%%>
+            <label for="time_rel_h">Log Tempo Relativo (Horas)</label><br>
+            <input type="checkbox" id="time_rel_s" name="time_rel_s" value="true" %%time_rel_s_checked%%>
+            <label for="time_rel_s">Log Tempo Relativo (Segundos)</label><br>
+            
+            <br>
+            <button type="submit">Salvar Configurações Gerais</button>
+        </form>
+        
+        <h2 style="margin-top:30px;">Configurações de Canais</h2>
+        <div class="channel-links">
+            <a href="/config_loop">Editar Canais Loop (S0-S7)</a> 
+            <a href="/config_volt">Editar Canais Voltagem (X0-X7)</a>
+        </div>
+        <p><i>(Ainda não implementado)</i></p>
+
+    </div>
+</body></html>

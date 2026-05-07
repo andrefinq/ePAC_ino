@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Home - ePAC</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 0; margin: 0; }
+        .navbar { background-color: #333; overflow: hidden; }
+        .navbar a { float: left; display: block; color: white; text-align: center; padding: 14px 16px; text-decoration: none; }
+        .navbar a:hover { background-color: #ddd; color: black; }
+        .navbar a.nav-reset {
+            float: right;
+            background-color: #dc3545;
+            border-radius: 5px;
+            margin: 8px 10px;
+            padding: 6px 10px;
+        }
+        .navbar a.nav-reset:hover { background-color: #c82333; }
+        .content { padding: 20px; }
+        .simulator-box { margin-bottom: 20px; } 
+        .header { border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .lcd-container { background: #334; padding: 10px; border-radius: 5px; }
+        .lcd { 
+            font-family: 'Courier New', Courier, monospace; 
+            background: #9be; 
+            color: #334; 
+            padding: 10px; 
+            font-size: 1.2rem; 
+            white-space: pre; 
+            border: 2px solid #555;
+            transition: background 0.2s, color 0.2s; 
+        }
+        .btn-container { display: flex; justify-content: space-around; padding-top: 10px; }
+        .btn-container button { padding: 10px 20px; font-size: 16px; user-select: none; }
+        
+        .combo-btn-container { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 10px; }
+        .combo-btn-container button {
+            padding: 8px 12px;
+            font-size: 14px;
+            user-select: none;
+            background-color: #6c757d; /* Cinza */
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+
+        .serial-container { background: #1e1e1e; color: #f1f1f1; border-radius: 5px; }
+        .serial-container h3 { padding: 10px 15px 0; margin: 0; }
+        .serial { 
+            height: 300px; 
+            overflow-y: scroll; 
+            padding: 15px; 
+            white-space: pre-wrap; 
+            font-family: 'Courier New', Courier, monospace; 
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <a href="/home">Home</a>
+        <a href="/status">Status</a>
+        <a href="/files">Arquivos</a>
+        <a href="/config">Configurações</a>
+		<a href='/wifi'>WiFi</a>
+        <a href="/">Sair</a>
+        <a href="javascript:void(0)" id="btn_reset" class="nav-reset">Resetar ePAC</a>
+    </div>
+
+    <div class="content">
+        <div class="header">
+            <h1>ePAC</h1>
+            <p>Versão: v3.0</p>
+        </div>
+        <div class="simulator-box">
+            <h3>Simulador de UI</h3>
+            <div class="lcd-container">
+                <div class="lcd" id="lcd_line_0">ePAC V3.0 ...   </div>
+                <div class="lcd" id="lcd_line_1">Aguardando...   </div>
+            </div>
+            <div class="btn-container">
+                <button id="btn_esq">Esquerda</button>
+                <button id="btn_fun">Função</button>
+                <button id="btn_dir">Direita</button>
+            </div>
+            
+            <div class="combo-btn-container">
+                <button id="btn_ef">E + F</button>
+                <button id="btn_fd">F + D</button>
+                <button id="btn_ed">E + D</button>
+                <button id="btn_efd">E + F + D</button>
+            </div>
+            </div>
+        <div class="serial-container">
+            <h3>Serial Monitor</h3>
+            <div class="serial" id="serial_monitor"></div>
+        </div>
+    </div>
+
+    <script>
+        const ws = new WebSocket(`ws://${window.location.host}/ws`);
+        const lcd0 = document.getElementById('lcd_line_0');
+        const lcd1 = document.getElementById('lcd_line_1');
+        const serialMonitor = document.getElementById('serial_monitor');
+
+        ws.onopen = () => {
+            console.log('WebSocket conectado.');
+            serialMonitor.innerHTML += '[Conexao WebSocket estabelecida]\r\n';
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'lcd') {
+                    lcd0.textContent = data.line0;
+                    lcd1.textContent = data.line1;
+                    if (data.bl) {
+                        lcd0.style.background = '#9be'; lcd1.style.background = '#9be';
+                        lcd0.style.color = '#334'; lcd1.style.color = '#334';
+                    } else {
+                        lcd0.style.background = '#334'; lcd1.style.background = '#334';
+                        lcd0.style.color = '#556'; lcd1.style.color = '#556';
+                    }
+                }
+                
+                if (data.type === 'serial') {
+                    serialMonitor.innerHTML += data.msg;
+                    serialMonitor.scrollTop = serialMonitor.scrollHeight;
+                }
+            } catch (e) { console.error('Erro ao processar WS data:', e); }
+        };
+
+        ws.onclose = () => {
+            console.log('WebSocket desconectado.');
+            serialMonitor.innerHTML += '[Conexao WebSocket perdida!]\r\n';
+        };
+
+        function sendButtonEvent(btn, action) {
+            if (ws.readyState === WebSocket.OPEN) {
+                const msg = JSON.stringify({ type: 'btn', btn: btn, action: action });
+                ws.send(msg);
+            }
+        }
+        
+        document.getElementById('btn_reset').addEventListener('click', () => {
+            if (confirm('Tem certeza que deseja resetar o ePAC?')) {
+                if (ws.readyState === WebSocket.OPEN) {
+                    serialMonitor.innerHTML += '[COMANDO: Resetando o ESP32...]\r\n';
+                    serialMonitor.scrollTop = serialMonitor.scrollHeight;
+                    ws.send(JSON.stringify({ type: 'reset' }));
+                } else {
+                    alert('WebSocket não conectado. Não é possível resetar.');
+                }
+            }
+        });
+
+        ['esq', 'fun', 'dir'].forEach(btnId => {
+            const button = document.getElementById(`btn_${btnId}`);
+            button.addEventListener('mousedown', () => sendButtonEvent(btnId, 'press'));
+            button.addEventListener('touchstart', (e) => { e.preventDefault(); sendButtonEvent(btnId, 'press'); });
+            button.addEventListener('mouseup', () => sendButtonEvent(btnId, 'release'));
+            button.addEventListener('mouseleave', () => sendButtonEvent(btnId, 'release'));
+            button.addEventListener('touchend', (e) => { e.preventDefault(); sendButtonEvent(btnId, 'release'); });
+        });
+
+        const combos = {
+            'ef': ['esq', 'fun'],
+            'fd': ['fun', 'dir'],
+            'ed': ['esq', 'dir'],
+            'efd': ['esq', 'fun', 'dir']
+        };
+
+        Object.keys(combos).forEach(comboId => {
+            const button = document.getElementById(`btn_${comboId}`);
+            const components = combos[comboId];
+
+            const press = () => components.forEach(c => sendButtonEvent(c, 'press'));
+            const release = () => components.forEach(c => sendButtonEvent(c, 'release'));
+
+            button.addEventListener('mousedown', press);
+            button.addEventListener('touchstart', (e) => { e.preventDefault(); press(); });
+            
+            button.addEventListener('mouseup', release);
+            button.addEventListener('mouseleave', release);
+            button.addEventListener('touchend', (e) => { e.preventDefault(); release(); });
+        });
+    </script>
+</body>
+</html>

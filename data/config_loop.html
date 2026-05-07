@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Calibrar Loops - ePAC</title>
+    <style>
+        body{font-family:Arial,sans-serif;margin:0;padding:0;}
+        .navbar{background-color:#333;overflow:hidden;}
+        .navbar a{float:left;display:block;color:white;text-align:center;padding:14px 16px;text-decoration:none;}
+        .navbar a:hover{background-color:#ddd;color:black;}
+        .content{padding:20px;max-width:800px;margin:auto;}
+        .form-section{background-color:#f9f9f9;border:1px solid #ddd;border-radius:8px;padding:20px;margin-bottom:20px;}
+        .form-section h3{border-bottom:1px solid #ccc;padding-bottom:5px;margin-top:0;}
+        .form-section label{display:inline-block;width:200px;font-weight:bold;}
+        .form-section select, .form-section input[type="number"]{padding:5px;min-width:100px;}
+        .form-section input[type="text"]{padding:5px;background:#eee;border:1px solid #ccc;}
+        .form-section button{padding:8px 12px;font-size:14px;cursor:pointer;background-color:#007bff;color:white;border:none;border-radius:4px;}
+        #btn_calculate{background-color:#ffc107;color:black;}
+        #btn_save{background-color:#28a745;font-size:16px;padding:12px 20px;margin-top:10px;}
+        #live_value_box{background:#111;color:#0f0;font-family:'Courier New',monospace;padding:10px;border-radius:4px;margin-top:10px;max-width:300px;}
+        #status_msg{font-weight:bold;color:blue;margin-top:10px;height:20px;}
+        .cal-table table{width:100%;}
+        .cal-table th{text-align:left;}
+        .cal-table input{width:100px;}
+        .cal-table button{min-width:100px;}
+        .results-label{font-weight:bold;display:inline-block;width:120px;margin-top: 5px;}
+        .results-input{width:200px; padding: 5px; margin-bottom: 5px;}
+        
+        /* --- CSS DO RADIO E AVISO (CORRIGIDO) --- */
+        .mode-container { display: flex; align-items: center; margin-top: 10px; }
+        .mode-container > label:first-child { width: auto !important; margin-right: 10px; } /* Correção de alinhamento */
+        .mode-container input[type="radio"] { margin: 0 5px 0 0; width: 18px; height: 18px; }
+        .mode-container label { width: auto !important; font-weight: bold; }
+        .mode-container label[for*="radio"] { font-weight: normal; } /* Labels dos radios */
+        .warning-text { color: red; font-weight: bold; margin-left: 15px; font-size: 0.9em; }
+        /* --- FIM CSS --- */
+    </style>
+</head>
+<body>
+    <div class='navbar'>
+        <a href='/home'>Home</a>
+        <a href='/status'>Status</a>
+        <a href='/files'>Arquivos</a>
+        <a href='/config'>Configurações</a>
+		<a href='/wifi'>WiFi</a>
+        <a href='/'>Sair</a>
+    </div>
+
+    <div class='content'>
+        <h1>Calibrar Canais Loop (ADS1256)</h1>
+        
+        <div class="form-section">
+            <h3>Passo 1: Seleção de canal e parâmetros</h3>
+            <label for="ch_select">Canal:</label>
+            <select id="ch_select">%%CHANNEL_OPTIONS%%</select>
+            <br>
+            <label for="cal_n_select">Número de Pontos ($2^n+1$):</label>
+            <select id="cal_n_select">%%CAL_N_OPTIONS%%</select>
+            <br>
+            <label for="cal_sam_select">Amostragens por Ponto ($2^n$):</label>
+            <select id="cal_sam_select">%%CAL_SAM_OPTIONS%%</select>
+            <br>
+            <label>Valor Mínimo (Ex: 4mA):</label> <input type="number" step="any" id="target_min" value="4.0">
+            <br>
+            <label>Valor Máximo (Ex: 20mA):</label> <input type="number" step="any" id="target_max" value="20.0">
+            
+            <div class="mode-container">
+                <label>Modo:</label>
+                <input type="radio" id="mode_radio_passivo" name="loop_mode" value="false">
+                <label for="mode_radio_passivo">Passivo</label>
+                
+                <input type="radio" id="mode_radio_ativo" name="loop_mode" value="true" style="margin-left:15px;">
+                <label for="mode_radio_ativo">Ativo</label>
+                
+                <span class="warning-text" id="mode_warning">VERIFICAR SE O HARDWARE ESTA DE ACORDO!!!</span>
+            </div>
+            <hr style="border:0;border-top:1px solid #ccc;margin-top:20px;">
+            <div id="live_value_box">
+                Valor Raw Ao Vivo: <span id="live_raw_value">--</span>
+            </div>
+        </div>
+
+        <div class="form-section cal-table">
+            <h3>Passo 2: Pontos de Calibração</h3>
+            <div id="status_msg">Selecione os parâmetros acima para gerar a tabela.</div>
+            <table id="cal_points_table">
+                <thead>
+                    <tr><th>Ponto</th><th>Valor Esperado (Y)</th><th>Valor Raw Lido (X)</th><th>Erro (std dev)</th><th>Ação</th></tr>
+                </thead>
+                <tbody id="cal_points_tbody">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="form-section">
+            <h3>Passo 3: Calcular e Salvar</h3>
+            <p>Valores de Calibração Atuais: <b>A =</b> <span id="cur_a">%%cur_a%%</span>, <b>B =</b> <span id="cur_b">%%cur_b%%</span></p>
+            <button type="button" id="btn_calculate" disabled>Calcular Calibração</button>
+            <hr>
+            <p>Novos Valores Calculados (Editáveis):</p>
+            
+            <label for="res_a" class="results-label">A (Alpha) =</label>
+            <input type="number" step="any" id="res_a" class="results-input"><br>
+            
+            <label for="res_b" class="results-label">B (Beta) =</label>
+            <input type="number" step="any" id="res_b" class="results-input"><br>
+
+            <span class="results-label">Erro (Eps) =</span> <span id="res_eps">--</span><br>
+            <span class="results-label">Correlação (R²) =</span> <span id="res_r">--</span><br>
+            
+            <form id="save_form" method="POST" action="/config_loop_save">
+                <input type="hidden" name="ch" id="form_ch" value="0">
+                <input type="hidden" name="a" id="form_a">
+                <input type="hidden" name="b" id="form_b">
+                <button type="submit" id="btn_save" disabled>Salvar no ePAC</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // --- Globais e Elementos DOM ---
+        const ws = new WebSocket(`ws://${window.location.host}/ws`);
+        const chSelect = document.getElementById('ch_select');
+        const calNSelect = document.getElementById('cal_n_select');
+        const calSamSelect = document.getElementById('cal_sam_select');
+        const targetMin = document.getElementById('target_min');
+        const targetMax = document.getElementById('target_max');
+        const liveRawValue = document.getElementById('live_raw_value');
+        const calTbody = document.getElementById('cal_points_tbody');
+        const statusMsg = document.getElementById('status_msg');
+        const radioModePassivo = document.getElementById('mode_radio_passivo');
+        const radioModeAtivo = document.getElementById('mode_radio_ativo');
+        
+        const btnCalculate = document.getElementById('btn_calculate');
+        const btnSave = document.getElementById('btn_save');
+        const formCh = document.getElementById('form_ch');
+        const formA = document.getElementById('form_a');
+        const formB = document.getElementById('form_b');
+        const resA = document.getElementById('res_a');
+        const resB = document.getElementById('res_b');
+        const resEps = document.getElementById('res_eps');
+        const resR = document.getElementById('res_r');
+
+        let calPoints = [];
+        let allPointsRead = false;
+        let configData = JSON.parse('%%CONFIG_JSON%%');
+
+        resA.addEventListener('input', (e) => { formA.value = e.target.value; });
+        resB.addEventListener('input', (e) => { formB.value = e.target.value; });
+
+        window.addEventListener('beforeunload', () => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'cal_stream_stop' }));
+            }
+        });
+
+        // --- WebSocket Handlers ---
+        ws.onopen = () => {
+            console.log('WS Conectado');
+            updateChannelInfo();
+            
+            let ch = chSelect.value;
+            let cfg = configData[ch];
+            if (cfg.is_enabled) {
+                sendCalStream(ch, calSamSelect.value);
+            } else {
+                statusMsg.textContent = "ERRO: ADS1256 desabilitado na Configuração Geral.";
+                liveRawValue.textContent = "-- (DESABILITADO)";
+                ws.send(JSON.stringify({ type: 'cal_stream_stop' }));
+            }
+            generateCalTable();
+        };
+        ws.onclose = () => console.log('WS Desconectado');
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'cal_error') {
+                    statusMsg.textContent = `ERRO: ${data.msg}`;
+                    if(liveRawValue.textContent !== '--') {
+                         liveRawValue.textContent = '-- (STREAM PARADO)';
+                    }
+                    calTbody.querySelectorAll('button').forEach(btn => btn.disabled = false);
+                }
+                if (data.type === 'cal_mode_saved') {
+                    statusMsg.textContent = "Modo salvo no ePAC.";
+                }
+                
+                if (data.type === 'cal_live') { 
+                    if (statusMsg.textContent !== "Stream ao vivo...") {
+                         statusMsg.textContent = "Stream ao vivo...";
+                    }
+                    liveRawValue.textContent = data.raw; 
+                }
+                
+                if (data.type === 'cal_result') {
+                    statusMsg.textContent = "Leitura concluída.";
+                    let i = data.target_i;
+                    document.getElementById(`raw_x_${i}`).value = data.raw;
+                    document.getElementById(`err_${i}`).textContent = data.err.toExponential(3);
+                    document.getElementById(`btn_read_${i}`).disabled = false;
+                    calPoints[i].x_raw = data.raw;
+                    checkAllPointsRead();
+                }
+                
+                if (data.type === 'cal_calculate_result') {
+                    statusMsg.textContent = "Cálculo concluído.";
+                    resA.value = data.a;
+                    resB.value = data.b;
+                    resEps.textContent = data.eps.toExponential(3);
+                    resR.textContent = data.r.toFixed(6);
+                    formA.value = data.a;
+                    formB.value = data.b;
+                    btnCalculate.disabled = false;
+                    btnSave.disabled = false;
+                }
+            } catch(e) { console.error('WS Error:', e); }
+        };
+
+        // --- Funções WebSocket ---
+        function sendCalStream(ch, sam) {
+            statusMsg.textContent = "Iniciando stream...";
+            liveRawValue.textContent = "--";
+            ws.send(JSON.stringify({ 
+                type: 'cal_stream_start', 
+                cal_type: 'loop',
+                ch: parseInt(ch), 
+                sam: parseInt(sam) 
+            }));
+            formCh.value = ch;
+        }
+
+        function sendCalRead(ch, i, sam) {
+            statusMsg.textContent = `Lendo amostras ($2^${sam})... Aguarde...`;
+            document.getElementById(`btn_read_${i}`).disabled = true;
+            btnCalculate.disabled = true;
+            btnSave.disabled = true;
+            ws.send(JSON.stringify({ 
+                type: 'cal_read', 
+                cal_type: 'loop',
+                ch: parseInt(ch), 
+                target_i: i, 
+                sam: parseInt(sam) 
+            }));
+        }
+
+        // --- Lógica da UI ---
+        function generateCalTable() {
+            let n = parseInt(calNSelect.value);
+            let numPoints = Math.pow(2, n) + 1;
+            let y_min = parseFloat(targetMin.value);
+            let y_max = parseFloat(targetMax.value);
+            let dy = (y_max - y_min) / (numPoints - 1);
+            calPoints = []; calTbody.innerHTML = "";
+            for (let i = 0; i < numPoints; i++) {
+                let y_val = y_min + (dy * i);
+                calPoints.push({ y_target: y_val, x_raw: null });
+                let row = `<tr>
+                    <td>Ponto ${i}</td>
+                    <td><input type="number" step="any" id="y_target_${i}" value="${y_val.toFixed(3)}"></td>
+                    <td><input type="text" id="raw_x_${i}" readonly></td>
+                    <td><span id="err_${i}">--</span></td>
+                    <td><button type="button" id="btn_read_${i}" data-index="${i}">Ler Raw (X${i})</button></td>
+                </tr>`;
+                calTbody.innerHTML += row;
+            }
+            statusMsg.textContent = "Tabela gerada. Aplique os sinais e leia os valores.";
+            calTbody.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    let i = parseInt(e.target.dataset.index);
+                    let ch = parseInt(chSelect.value);
+                    let sam = parseInt(calSamSelect.value);
+                    sendCalRead(ch, i, sam);
+                });
+            });
+            calTbody.querySelectorAll('input[type="number"]').forEach((input, i) => {
+                input.addEventListener('change', (e) => {
+                    calPoints[i].y_target = parseFloat(e.target.value);
+                    checkAllPointsRead();
+                });
+            });
+            checkAllPointsRead();
+        }
+
+        function checkAllPointsRead() {
+            allPointsRead = calPoints.every(p => p.x_raw !== null);
+            btnCalculate.disabled = !allPointsRead;
+            btnSave.disabled = true;
+            resA.value = ""; resB.value = "";
+            resEps.textContent = "--"; resR.textContent = "--";
+        }
+        
+        btnCalculate.addEventListener('click', () => {
+            if (!allPointsRead) { alert("Por favor, leia todos os pontos Raw antes de calcular."); return; }
+            statusMsg.textContent = "Calculando regressão no ePAC...";
+            btnCalculate.disabled = true;
+            let y_array = calPoints.map(p => p.y_target);
+            let x_array = calPoints.map(p => p.x_raw);
+            let ch = parseInt(chSelect.value);
+            ws.send(JSON.stringify({
+                type: 'cal_calculate', cal_type: 'loop', ch: ch, y: y_array, x_raw: x_array
+            }));
+        });
+        
+        function updateChannelInfo() {
+            let ch = parseInt(chSelect.value);
+            let cfg = configData[ch];
+            document.getElementById('cur_a').textContent = cfg.a.toExponential(6);
+            document.getElementById('cur_b').textContent = cfg.b.toExponential(6);
+            
+            if (cfg.is_active) {
+                radioModeAtivo.checked = true;
+            } else {
+                radioModePassivo.checked = true;
+            }
+        }
+        
+        chSelect.addEventListener('change', (e) => {
+            let ch = e.target.value;
+            let sam = calSamSelect.value;
+            updateChannelInfo();
+            
+            let cfg = configData[ch];
+            if (cfg.is_enabled) {
+                sendCalStream(ch, sam);
+            } else {
+                statusMsg.textContent = "ERRO: ADS1256 desabilitado na Configuração Geral.";
+                liveRawValue.textContent = "-- (DESABILITADO)";
+                ws.send(JSON.stringify({ type: 'cal_stream_stop' }));
+            }
+            generateCalTable();
+        });
+
+        function handleModeChange(e) {
+            let ch = parseInt(chSelect.value);
+            let isActive = (e.target.value === 'true');
+            
+            configData[ch].is_active = isActive; 
+            statusMsg.textContent = "Salvando modo...";
+            
+            ws.send(JSON.stringify({ 
+                type: 'cal_set_mode', 
+                cal_type: 'loop', 
+                ch: ch, 
+                active: isActive 
+            }));
+        }
+        radioModePassivo.addEventListener('change', handleModeChange);
+        radioModeAtivo.addEventListener('change', handleModeChange);
+
+        calNSelect.addEventListener('change', generateCalTable);
+        calSamSelect.addEventListener('change', () => {
+             let ch = chSelect.value;
+             let cfg = configData[ch];
+             if (cfg.is_enabled) {
+                 sendCalStream(ch, calSamSelect.value);
+             }
+        });
+        targetMin.addEventListener('change', generateCalTable);
+        targetMax.addEventListener('change', generateCalTable);
+
+    </script>
+</body></html>
