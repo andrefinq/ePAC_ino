@@ -384,7 +384,7 @@ bool *opt_a;           //mudar loop_a ou volt_a
 SPIFlash flash(W25Q16_CS_PIN);  // Objeto do Driver SPIMemory
 Preferences preferences;        // Objeto para NVS
 
-const char *NVS_NAMESPACE = "ePAC_v3.0";
+const char *NVS_NAMESPACE = "ePAC";
 const char *NVS_WRITE_PTR_KEY = "write_ptr";
 uint32_t cache_write_ptr = 0;       // Nosso "ponteiro" de onde escrever
 uint32_t chip_capacity = 0;         // Capacidade total do chip
@@ -427,6 +427,7 @@ void dumpFlashToSD();
 int readADC(int fadc, int fch, bool fcc);
 void refresh_menu();
 void fatal_error();
+void checkb();
 
 // Funções de Configuração
 bool saveConfiguration();
@@ -558,10 +559,7 @@ void dumpFlashToSD() {
 
   if (xSemaphoreTake(sdMutex, portMAX_DELAY) == pdTRUE) {
     // --- Início do Bloco Protegido ---
-    if (!st.a_run && ramBufferCount == 0) {
-      xSemaphoreGive(sdMutex);  // Devolve antes de sair
-      return;
-    }
+
     log_println("Iniciando DUMP da Flash para o SD Card...");
     sprintf(mtxt, "/data%05d.csv", st.n_run);
     File file = SD.open(mtxt, FILE_APPEND);
@@ -788,10 +786,14 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
           const char *btn = doc["btn"];
           const char *action = doc["action"];
           bool press = (strcmp(action, "press") == 0);
-          if (strcmp(btn, "esq") == 0) g_wsBtnEsq = press;
-          else if (strcmp(btn, "fun") == 0) g_wsBtnFun = press;
-          else if (strcmp(btn, "dir") == 0) g_wsBtnDir = press;
-
+          log_print("btnweb: [");
+          log_print(action);
+          log_print("], [");
+          log_print(btn);
+          log_println("]");
+          if (strcmp(btn, "esq") == 0 && g_wsBtnEsq != true) g_wsBtnEsq = press;
+          else if (strcmp(btn, "fun") == 0 && g_wsBtnFun != true) g_wsBtnFun = press;
+          else if (strcmp(btn, "dir") == 0 && g_wsBtnDir != true) g_wsBtnDir = press;
         } else if (strcmp(type, "reset") == 0) {
           log_println("Comando de reset recebido via WebSocket. Resetando...");
           if (xSemaphoreTake(sdMutex, portMAX_DELAY) == pdTRUE) {
@@ -1700,22 +1702,28 @@ void checkb() {  // controle de botoes bits 4 - esquerda / 2 - func / 1 - direit
   byte b = 0b00000000;
   byte c = 0b00000000;
 
-  if (digitalRead(besq_pin) == LOW || g_wsBtnEsq) {
+   if (g_wsBtnEsq) {//if (digitalRead(besq_pin) == LOW || g_wsBtnEsq) {
     a = 0b00000100;
+    g_wsBtnEsq = false;
   } else {
     a = 0b00000000;
   }
-  if (digitalRead(bfun_pin) == LOW || g_wsBtnFun) {
+  if (g_wsBtnFun) {//if (digitalRead(bfun_pin) == LOW || g_wsBtnFun) {
     b = 0b00000010;
+    g_wsBtnFun = false;
   } else {
     b = 0b00000000;
   }
-  if (digitalRead(bdir_pin) == LOW || g_wsBtnDir) {
+  if (g_wsBtnDir) {//if (digitalRead(bdir_pin) == LOW || g_wsBtnDir) {
     c = 0b00000001;
+    g_wsBtnDir = false;
   } else {
     c = 0b00000000;
   }
   byte bm = a | b | c;
+  //log_print("btfis: [");
+  //log_print(uint32_t(bm));
+  //log_println("]");
   if (bs == bm) {
     if (bt < 100) {
       bt++;
@@ -1864,7 +1872,6 @@ void core_menu() {
           trun = now - ini;
           if (bs == 7) {
             st.a_run = false;
-            st.n_run++;
             st.t_run = 0;
             last_s_time = 0;
             trun = now - now;
@@ -2309,16 +2316,6 @@ bool initExternalFlash() {
   log_print("Chip W25Qxx encontrado! Capacidade: ");
   log_print(chip_capacity / 1024);
   log_println(" KB");
-
-  // 3. Inicializa a NVS para carregar nosso ponteiro
-  if (!preferences.begin(NVS_NAMESPACE, false)) {  // false = read/write
-    log_println("Erro: Nao foi possivel iniciar a NVS. Tentando formatar...");
-    preferences.clear();
-    if (!preferences.begin(NVS_NAMESPACE, false)) {
-      log_println("ERRO FATAL: NVS esta quebrada.");
-      return false;  // Falha crítica
-    }
-  }
 
   // 4. Carrega o ponteiro de onde paramos
   cache_write_ptr = preferences.getULong(NVS_WRITE_PTR_KEY, 0);
@@ -3096,7 +3093,7 @@ void setup(void) {
     lcd.clear();
     lcd.setBacklight(HIGH);
     lcd.setCursor(0, 0);
-    lcd.print("   e-PAC v3.0   ");
+    lcd.print("   e-PAC v3.1   ");
     sysStatus.lcd = true;
   }
 
@@ -3158,7 +3155,7 @@ void setup(void) {
       lcd.print("WiFi Conectado!");
       lcd.setCursor(0, 1);
       lcd.print(WiFi.localIP());
-      delay(2*t_delay);
+      delay(2 * t_delay);
     } else {
       // 5. Falha ao conectar.
       log_println("\nFalha ao conectar. Revertendo para Modo AP.");
@@ -3567,7 +3564,7 @@ void setup(void) {
   lcd.print("   Ext. Flash?  ");
   delay(t_delay);
 
-  useExternalFlash = false;  //initExternalFlash();
+  useExternalFlash = initExternalFlash();
   sysStatus.ext_flash = useExternalFlash;
 
   if (useExternalFlash) {
@@ -3595,6 +3592,7 @@ void setup(void) {
   pinMode(bdir_pin, INPUT);
   pinMode(besq_pin, INPUT);
   pinMode(bfun_pin, INPUT);
+
   for (int i = 0; i < xs.size(); i++) xs.push(0);
   for (int i = 0; i < v_t.size(); i++) v_t.push(0);
   lcd.setCursor(0, 1);
@@ -3679,6 +3677,11 @@ void loop(void) {
     dumpRamToFlash();
     log_println("Fazendo dump final da Flash para o SD...");
     dumpFlashToSD();  // Esvazia o cache para o SD
+                      // SÓ AGORA incrementa o número do run
+    st.n_run++;
+    saveState();
+    log_print("Proximo run sera: ");
+    log_println(st.n_run);
   }
   // ------------------------------
 

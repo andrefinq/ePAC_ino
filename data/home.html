@@ -1,14 +1,36 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Home - ePAC</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 0; margin: 0; }
-        .navbar { background-color: #333; overflow: hidden; }
-        .navbar a { float: left; display: block; color: white; text-align: center; padding: 14px 16px; text-decoration: none; }
-        .navbar a:hover { background-color: #ddd; color: black; }
+        body {
+            font-family: Arial, sans-serif;
+            padding: 0;
+            margin: 0;
+        }
+
+        .navbar {
+            background-color: #333;
+            overflow: hidden;
+        }
+
+        .navbar a {
+            float: left;
+            display: block;
+            color: white;
+            text-align: center;
+            padding: 14px 16px;
+            text-decoration: none;
+        }
+
+        .navbar a:hover {
+            background-color: #ddd;
+            color: black;
+        }
+
         .navbar a.nav-reset {
             float: right;
             background-color: #dc3545;
@@ -16,53 +38,99 @@
             margin: 8px 10px;
             padding: 6px 10px;
         }
-        .navbar a.nav-reset:hover { background-color: #c82333; }
-        .content { padding: 20px; }
-        .simulator-box { margin-bottom: 20px; } 
-        .header { border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        .lcd-container { background: #334; padding: 10px; border-radius: 5px; }
-        .lcd { 
-            font-family: 'Courier New', Courier, monospace; 
-            background: #9be; 
-            color: #334; 
-            padding: 10px; 
-            font-size: 1.2rem; 
-            white-space: pre; 
-            border: 2px solid #555;
-            transition: background 0.2s, color 0.2s; 
+
+        .navbar a.nav-reset:hover {
+            background-color: #c82333;
         }
-        .btn-container { display: flex; justify-content: space-around; padding-top: 10px; }
-        .btn-container button { padding: 10px 20px; font-size: 16px; user-select: none; }
-        
-        .combo-btn-container { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 10px; }
+
+        .content {
+            padding: 20px;
+        }
+
+        .simulator-box {
+            margin-bottom: 20px;
+        }
+
+        .header {
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .lcd-container {
+            background: #334;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .lcd {
+            font-family: 'Courier New', Courier, monospace;
+            background: #9be;
+            color: #334;
+            padding: 10px;
+            font-size: 1.2rem;
+            white-space: pre;
+            border: 2px solid #555;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .btn-container {
+            display: flex;
+            justify-content: space-around;
+            padding-top: 10px;
+        }
+
+        .btn-container button {
+            padding: 10px 20px;
+            font-size: 16px;
+            user-select: none;
+        }
+
+        .combo-btn-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding-top: 10px;
+        }
+
         .combo-btn-container button {
             padding: 8px 12px;
             font-size: 14px;
             user-select: none;
-            background-color: #6c757d; /* Cinza */
+            background-color: #6c757d;
+            /* Cinza */
             color: white;
             border: none;
             border-radius: 4px;
         }
 
-        .serial-container { background: #1e1e1e; color: #f1f1f1; border-radius: 5px; }
-        .serial-container h3 { padding: 10px 15px 0; margin: 0; }
-        .serial { 
-            height: 300px; 
-            overflow-y: scroll; 
-            padding: 15px; 
-            white-space: pre-wrap; 
-            font-family: 'Courier New', Courier, monospace; 
+        .serial-container {
+            background: #1e1e1e;
+            color: #f1f1f1;
+            border-radius: 5px;
+        }
+
+        .serial-container h3 {
+            padding: 10px 15px 0;
+            margin: 0;
+        }
+
+        .serial {
+            height: 300px;
+            overflow-y: scroll;
+            padding: 15px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', Courier, monospace;
         }
     </style>
 </head>
+
 <body>
     <div class="navbar">
         <a href="/home">Home</a>
         <a href="/status">Status</a>
         <a href="/files">Arquivos</a>
         <a href="/config">Configurações</a>
-		<a href='/wifi'>WiFi</a>
+        <a href='/wifi'>WiFi</a>
         <a href="/">Sair</a>
         <a href="javascript:void(0)" id="btn_reset" class="nav-reset">Resetar ePAC</a>
     </div>
@@ -75,22 +143,27 @@
         <div class="simulator-box">
             <h3>Simulador de UI</h3>
             <div class="lcd-container">
-                <div class="lcd" id="lcd_line_0">ePAC V3.0 ...   </div>
-                <div class="lcd" id="lcd_line_1">Aguardando...   </div>
+                <div class="lcd" id="lcd_line_0">ePAC V3.0 ... </div>
+                <div class="lcd" id="lcd_line_1">Aguardando... </div>
             </div>
             <div class="btn-container">
                 <button id="btn_esq">Esquerda</button>
                 <button id="btn_fun">Função</button>
                 <button id="btn_dir">Direita</button>
             </div>
-            
+
             <div class="combo-btn-container">
                 <button id="btn_ef">E + F</button>
                 <button id="btn_fd">F + D</button>
                 <button id="btn_ed">E + D</button>
                 <button id="btn_efd">E + F + D</button>
             </div>
+            <div style="padding-top:8px; font-size:14px;">
+                <label>
+                    <input type="checkbox" id="chk_hold"> Modo Hold (segurar botão)
+                </label>
             </div>
+        </div>
         <div class="serial-container">
             <h3>Serial Monitor</h3>
             <div class="serial" id="serial_monitor"></div>
@@ -111,7 +184,7 @@
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                
+
                 if (data.type === 'lcd') {
                     lcd0.textContent = data.line0;
                     lcd1.textContent = data.line1;
@@ -123,7 +196,7 @@
                         lcd0.style.color = '#556'; lcd1.style.color = '#556';
                     }
                 }
-                
+
                 if (data.type === 'serial') {
                     serialMonitor.innerHTML += data.msg;
                     serialMonitor.scrollTop = serialMonitor.scrollHeight;
@@ -138,11 +211,10 @@
 
         function sendButtonEvent(btn, action) {
             if (ws.readyState === WebSocket.OPEN) {
-                const msg = JSON.stringify({ type: 'btn', btn: btn, action: action });
-                ws.send(msg);
+                ws.send(JSON.stringify({ type: 'btn', btn: btn, action: action }));
             }
         }
-        
+
         document.getElementById('btn_reset').addEventListener('click', () => {
             if (confirm('Tem certeza que deseja resetar o ePAC?')) {
                 if (ws.readyState === WebSocket.OPEN) {
@@ -155,15 +227,6 @@
             }
         });
 
-        ['esq', 'fun', 'dir'].forEach(btnId => {
-            const button = document.getElementById(`btn_${btnId}`);
-            button.addEventListener('mousedown', () => sendButtonEvent(btnId, 'press'));
-            button.addEventListener('touchstart', (e) => { e.preventDefault(); sendButtonEvent(btnId, 'press'); });
-            button.addEventListener('mouseup', () => sendButtonEvent(btnId, 'release'));
-            button.addEventListener('mouseleave', () => sendButtonEvent(btnId, 'release'));
-            button.addEventListener('touchend', (e) => { e.preventDefault(); sendButtonEvent(btnId, 'release'); });
-        });
-
         const combos = {
             'ef': ['esq', 'fun'],
             'fd': ['fun', 'dir'],
@@ -171,20 +234,52 @@
             'efd': ['esq', 'fun', 'dir']
         };
 
+        // Para botões simples (esq, fun, dir):
+        ['esq', 'fun', 'dir'].forEach(btnId => {
+            const button = document.getElementById(`btn_${btnId}`);
+            const isHold = () => document.getElementById('chk_hold').checked;
+
+            const onPress = () => {
+                sendButtonEvent(btnId, 'press');
+                if (!isHold()) {
+                    // Simula click: solta após 80ms (tempo suficiente para checkb() detectar)
+                    setTimeout(() => sendButtonEvent(btnId, 'release'), 80);
+                }
+            };
+            const onRelease = () => {
+                if (isHold()) sendButtonEvent(btnId, 'release');
+            };
+
+            button.addEventListener('mousedown', onPress);
+            button.addEventListener('touchstart', (e) => { e.preventDefault(); onPress(); });
+            button.addEventListener('mouseup', onRelease);
+            button.addEventListener('mouseleave', onRelease);
+            button.addEventListener('touchend', (e) => { e.preventDefault(); onRelease(); });
+        });
+
+        // Para combos (ef, fd, ed, efd) — mesma lógica:
         Object.keys(combos).forEach(comboId => {
             const button = document.getElementById(`btn_${comboId}`);
             const components = combos[comboId];
+            const isHold = () => document.getElementById('chk_hold').checked;
 
-            const press = () => components.forEach(c => sendButtonEvent(c, 'press'));
-            const release = () => components.forEach(c => sendButtonEvent(c, 'release'));
+            const press = () => {
+                components.forEach(c => sendButtonEvent(c, 'press'));
+                if (!isHold()) {
+                    setTimeout(() => components.forEach(c => sendButtonEvent(c, 'release')), 80);
+                }
+            };
+            const release = () => {
+                if (isHold()) components.forEach(c => sendButtonEvent(c, 'release'));
+            };
 
             button.addEventListener('mousedown', press);
             button.addEventListener('touchstart', (e) => { e.preventDefault(); press(); });
-            
             button.addEventListener('mouseup', release);
             button.addEventListener('mouseleave', release);
             button.addEventListener('touchend', (e) => { e.preventDefault(); release(); });
         });
     </script>
 </body>
+
 </html>

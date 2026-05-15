@@ -50,7 +50,7 @@ int mnav[][16] = {  //coodenadas de navegaçao do menu (planilha)
   { 44, 44, 28, 44, 44, 3, 44, 2, 44, 44, 44, 44, 44, 0, 44, 4 }
 };
 char *mbase[][2] = {  //textos base do menu (planilha)
-  { "   e-PAC v3.0   ", "<    TESTES    >" },
+  { "   e-PAC v3.1   ", "<    TESTES    >" },
   { "    DEV POR:    ", "ANDRE CRESCENZO " },
   { "N00000 000:00:00", "A0C0+000.0000000" },
   { "   e-PAC v3.0   ", "<   CALIBRAR   >" },
