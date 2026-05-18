@@ -629,14 +629,14 @@ void dumpFlashToSD() {
 
           // 4. O DELAY ADEQUADO (20 milissegundos)
           // Dá tempo para o cartão SD respirar e para o RTOS não estourar o Watchdog
-          vTaskDelay(100 / portTICK_PERIOD_MS);
+          vTaskDelay(20 / portTICK_PERIOD_MS);
           esp_task_wdt_reset();  // Alimenta o watchdog explicitamente
         }
 
         // Sucesso! Limpa o cache da flash
         cache_write_ptr = 0;
         preferences.putULong(NVS_WRITE_PTR_KEY, cache_write_ptr);
-        flash.eraseSector(0);
+        //flash.eraseSector(0);
         // --- TRUQUE DE LIMPEZA DO BARRAMENTO SPI ---
         // Garante que a Flash está desativada antes de falar com o SD
         //digitalWrite(W25Q16_CS_PIN, HIGH);
@@ -644,7 +644,7 @@ void dumpFlashToSD() {
         //SPI.transfer(0xFF);
         //SPI.endTransaction();
         // -------------------------------------------
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(20 / portTICK_PERIOD_MS);
       }
     }
 
@@ -985,51 +985,49 @@ bool loadState() {
 }
 
 // Saves the configuration to a file
+// Saves the configuration to a file
 bool saveState() {
   if (xSemaphoreTake(sdMutex, portMAX_DELAY) == pdTRUE) {
-    log_println("trava0");
-    if (!SD.rename("/state.json", "/state_old.json")) {
-      log_println("trava1");
-      xSemaphoreGive(sdMutex);  // Devolve antes de sair
-      log_println("trava2");
-      return false;
-      log_println("trava3");
+    if (SD.exists("/state.json")) {
+      if (!SD.rename("/state.json", "/state_old.json")) {
+        xSemaphoreGive(sdMutex); // Devolve o mutex se der erro
+        return false;
+      }
     }
-    log_println("trava4");
-    // Open file for writing
+    // 4. Abre o arquivo para escrita
     File file = SD.open("/state.json", FILE_WRITE);
     if (!file) {
+      xSemaphoreGive(sdMutex);
       return false;
     }
 
-    // Allocate a temporary JsonDocument
-    // Don't forget to change the capacity to match your requirements.
-    // Use arduinojson.org/assistant to compute the capacity.
     DynamicJsonDocument doc(256);
-
     doc["run"] = st.a_run;
     doc["n"] = st.n_run;
     doc["run_time"] = st.t_run;
-
     JsonObject reles = doc.createNestedObject("reles");
 
     for (int i = 0; i < 8; i++) {
       sprintf(mtxt, "r%01d", i);
       reles[mtxt] = st.r[i];
     }
-    // Serialize JSON to file
+    
+    // 5. Serializa e previne vazamento de arquivo aberto
     if (serializeJson(doc, file) == 0) {
+      file.close();             // É obrigatório fechar antes de abortar!
+      xSemaphoreGive(sdMutex);  // É obrigatório soltar o Mutex!
       return false;
     }
 
-    // Close the file
     file.close();
-    if (!SD.remove("/state_old.json")) {
-      xSemaphoreGive(sdMutex);  // Devolve antes de sair
-      return false;
+
+    // 6. Limpa o backup
+    if (SD.exists("/state_old.json")) {
+      SD.remove("/state_old.json");
     }
+    
     xSemaphoreGive(sdMutex);
-    log_println("Run state salvo!");
+    log_println("Run state salvo com sucesso!");
     return true;
   }
   return false;
@@ -1920,7 +1918,6 @@ void core_menu() {
             trun = now - now;
             s_count = 0;
             sampling = false;
-            saveState();
           }
         }
       }
