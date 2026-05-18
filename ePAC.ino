@@ -506,7 +506,7 @@ void dumpRamToFlash() {
       return;
     }
 
-// 2. Lógica de Apagar-Antes-de-Escrever (CORRIGIDA COM LOOP)
+    // 2. Lógica de Apagar-Antes-de-Escrever (CORRIGIDA COM LOOP)
     uint32_t startSector = cache_write_ptr / SECTOR_SIZE;
     uint32_t endSector = (cache_write_ptr + len - 1) / SECTOR_SIZE;
 
@@ -529,8 +529,8 @@ void dumpRamToFlash() {
 
     // 3. Agora podemos escrever os dados (CORREÇÃO DO STACK OVERFLOW)
     // Em vez de usar writeStr que consome muita pilha, usamos ponteiros diretos:
-    uint8_t* rawData = (uint8_t*) ramBuffer.c_str(); 
-    
+    uint8_t *rawData = (uint8_t *)ramBuffer.c_str();
+
     if (!flash.writeByteArray(cache_write_ptr, rawData, len)) {
       log_println("ERRO: Falha ao escrever na flash externa!");
       return;  // Aborta, tenta de novo
@@ -570,12 +570,6 @@ void dumpFlashToSD() {
 
     log_println("Iniciando DUMP da Flash para o SD Card...");
     sprintf(mtxt, "/data%05d.csv", st.n_run);
-    File file = SD.open(mtxt, FILE_APPEND);
-    if (!file) {
-      log_println("ERRO CRITICO: Nao foi possivel abrir o arquivo no SD Card!");
-      xSemaphoreGive(sdMutex);
-      return;  // Aborta o dump, os dados permanecem no cache da flash
-    }
 
     // 3. Verifica se o cache da flash interna (fallback) tem dados
     if (useInternalFlash) {
@@ -585,7 +579,15 @@ void dumpFlashToSD() {
         uint8_t buf[64];
         while (cacheFile.available()) {
           int bytesRead = cacheFile.read(buf, sizeof(buf));
+          File file = SD.open(mtxt, FILE_APPEND);
+          if (!file) {
+            log_println("ERRO CRITICO: Nao foi possivel abrir o arquivo no SD Card!");
+            xSemaphoreGive(sdMutex);
+            return;  // Aborta o dump, os dados permanecem no cache da flash
+          }
           file.write(buf, bytesRead);
+          file.flush();
+          file.close();
         }
         cacheFile.close();
         LittleFS.remove(CACHE_FILE);
@@ -603,10 +605,17 @@ void dumpFlashToSD() {
           uint32_t bytesToRead = min((uint32_t)sizeof(readBuf), cache_write_ptr - read_ptr);
           if (!flash.readByteArray(read_ptr, readBuf, bytesToRead)) {
             log_println("ERRO: Falha na leitura da flash externa! Abortando dump.");
-            file.close();  // Fecha o arquivo antes de sair
             return;
           }
+          File file = SD.open(mtxt, FILE_APPEND);
+          if (!file) {
+            log_println("ERRO CRITICO: Nao foi possivel abrir o arquivo no SD Card!");
+            xSemaphoreGive(sdMutex);
+            return;  // Aborta o dump, os dados permanecem no cache da flash
+          }
           file.write(readBuf, bytesToRead);
+          file.flush();
+          file.close();
           read_ptr += bytesToRead;
         }
         // Sucesso! Limpa o cache da flash
@@ -616,8 +625,6 @@ void dumpFlashToSD() {
       }
     }
 
-    file.flush();
-    file.close();
     log_println("DUMP da Flash para o SD Card CONCLUIDO.");
 
     // --- INÍCIO DA ATUALIZAÇÃO DO HW WATCHDOG ---
@@ -1710,19 +1717,19 @@ void checkb() {  // controle de botoes bits 4 - esquerda / 2 - func / 1 - direit
   byte b = 0b00000000;
   byte c = 0b00000000;
 
-   if (g_wsBtnEsq) {//if (digitalRead(besq_pin) == LOW || g_wsBtnEsq) {
+  if (g_wsBtnEsq) {  //if (digitalRead(besq_pin) == LOW || g_wsBtnEsq) {
     a = 0b00000100;
     g_wsBtnEsq = false;
   } else {
     a = 0b00000000;
   }
-  if (g_wsBtnFun) {//if (digitalRead(bfun_pin) == LOW || g_wsBtnFun) {
+  if (g_wsBtnFun) {  //if (digitalRead(bfun_pin) == LOW || g_wsBtnFun) {
     b = 0b00000010;
     g_wsBtnFun = false;
   } else {
     b = 0b00000000;
   }
-  if (g_wsBtnDir) {//if (digitalRead(bdir_pin) == LOW || g_wsBtnDir) {
+  if (g_wsBtnDir) {  //if (digitalRead(bdir_pin) == LOW || g_wsBtnDir) {
     c = 0b00000001;
     g_wsBtnDir = false;
   } else {
