@@ -396,7 +396,7 @@ bool useInternalFlash = false;
 const char *CACHE_FILE = "/log_cache.csv";  // Usado APENAS para o fallback interno
 String ramBuffer = "";
 int ramBufferCount = 0;
-const int MAX_RAM_LINES = 50;
+const int MAX_RAM_LINES = 20;
 
 // Variáveis de tempo para o "dump"
 unsigned long t_dump_sd = 0;
@@ -506,24 +506,32 @@ void dumpRamToFlash() {
       return;
     }
 
-    // 2. Lógica de Apagar-Antes-de-Escrever
+// 2. Lógica de Apagar-Antes-de-Escrever (CORRIGIDA COM LOOP)
     uint32_t startSector = cache_write_ptr / SECTOR_SIZE;
     uint32_t endSector = (cache_write_ptr + len - 1) / SECTOR_SIZE;
 
-    // Se o ponteiro for 0, ou se cruzarmos para um novo setor, precisamos apagar.
+    // Se o ponteiro for 0, ou se cruzarmos para novos setores, precisamos apagar TODOS os setores envolvidos.
     if (cache_write_ptr == 0 || startSector != endSector) {
-      log_print("Ponteiro cruzou setor. Apagando setor ");
+      log_print("Cruzou limite de setor. Apagando do setor ");
+      log_print(startSector == endSector ? endSector : startSector + 1);
+      log_print(" ate o setor ");
       log_println(endSector);
-      if (!flash.eraseSector(endSector * SECTOR_SIZE)) {
-        log_println("ERRO: Falha ao apagar setor. Tentara novamente.");
-        return;  // Aborta a escrita, tenta de novo no proximo ciclo
+
+      // Loop para apagar todos os setores necessários (previne corrupção de buffers grandes)
+      uint32_t eraseStart = (cache_write_ptr == 0) ? 0 : startSector + 1;
+      for (uint32_t s = eraseStart; s <= endSector; s++) {
+        if (!flash.eraseSector(s * SECTOR_SIZE)) {
+          log_println("ERRO: Falha ao apagar setor. Tentara novamente.");
+          return;  // Aborta a escrita, tenta de novo no proximo ciclo
+        }
       }
-      // Se cruzarmos múltiplos setores (improvável com buffer de 50 linhas),
-      // este código SÓ apaga o último. Para um buffer grande, precisaríamos de um loop.
     }
 
-    // 3. Agora podemos escrever os dados
-    if (!flash.writeStr(cache_write_ptr, ramBuffer)) {
+    // 3. Agora podemos escrever os dados (CORREÇÃO DO STACK OVERFLOW)
+    // Em vez de usar writeStr que consome muita pilha, usamos ponteiros diretos:
+    uint8_t* rawData = (uint8_t*) ramBuffer.c_str(); 
+    
+    if (!flash.writeByteArray(cache_write_ptr, rawData, len)) {
       log_println("ERRO: Falha ao escrever na flash externa!");
       return;  // Aborta, tenta de novo
     }
