@@ -574,54 +574,77 @@ void dumpFlashToSD() {
     // 3. Verifica se o cache da flash interna (fallback) tem dados
     if (useInternalFlash) {
       File cacheFile = LittleFS.open(CACHE_FILE, "r");
+      File file = SD.open(mtxt, FILE_APPEND);
+      if (!file) {
+        log_println("ERRO CRITICO: Nao foi possivel abrir o arquivo no SD Card!");
+        xSemaphoreGive(sdMutex);
+        return;  // Aborta o dump, os dados permanecem no cache da flash
+      }
       if (cacheFile && cacheFile.size() > 0) {
         log_println("Movendo cache INTERNO para SD...");
         uint8_t buf[64];
         while (cacheFile.available()) {
           int bytesRead = cacheFile.read(buf, sizeof(buf));
-          File file = SD.open(mtxt, FILE_APPEND);
-          if (!file) {
-            log_println("ERRO CRITICO: Nao foi possivel abrir o arquivo no SD Card!");
-            xSemaphoreGive(sdMutex);
-            return;  // Aborta o dump, os dados permanecem no cache da flash
-          }
           file.write(buf, bytesRead);
-          file.flush();
-          file.close();
         }
         cacheFile.close();
         LittleFS.remove(CACHE_FILE);
       } else if (cacheFile) {
         cacheFile.close();
       }
+      file.flush();
+      file.close();
     }
     // 4. Verifica se o cache da flash externa tem dados
     else if (useExternalFlash) {
       if (cache_write_ptr > 0) {
         log_println("Movendo cache EXTERNO para SD...");
-        uint8_t readBuf[64];
+
+        // 1. Buffer aumentado para 1024 bytes (acelera MUITO o processo)
+        uint8_t readBuf[1024];
         uint32_t read_ptr = 0;
+
         while (read_ptr < cache_write_ptr) {
           uint32_t bytesToRead = min((uint32_t)sizeof(readBuf), cache_write_ptr - read_ptr);
+
+          // 2. Lê os dados da Flash Externa PRIMEIRO (SD Card está fechado e "quieto")
           if (!flash.readByteArray(read_ptr, readBuf, bytesToRead)) {
             log_println("ERRO: Falha na leitura da flash externa! Abortando dump.");
             return;
           }
+
+          // 3. Abre o SD Card, escreve o bloco de 1024 bytes e fecha
           File file = SD.open(mtxt, FILE_APPEND);
           if (!file) {
             log_println("ERRO CRITICO: Nao foi possivel abrir o arquivo no SD Card!");
             xSemaphoreGive(sdMutex);
-            return;  // Aborta o dump, os dados permanecem no cache da flash
+            return;
           }
+
           file.write(readBuf, bytesToRead);
           file.flush();
-          file.close();
+          file.close();  // Força a gravação física (FAT)
+          log_println(read_ptr);
           read_ptr += bytesToRead;
+
+          // 4. O DELAY ADEQUADO (20 milissegundos)
+          // Dá tempo para o cartão SD respirar e para o RTOS não estourar o Watchdog
+          vTaskDelay(100 / portTICK_PERIOD_MS);
+          esp_task_wdt_reset();  // Alimenta o watchdog explicitamente
         }
+
         // Sucesso! Limpa o cache da flash
         cache_write_ptr = 0;
         preferences.putULong(NVS_WRITE_PTR_KEY, cache_write_ptr);
         flash.eraseSector(0);
+        // --- TRUQUE DE LIMPEZA DO BARRAMENTO SPI ---
+        // Garante que a Flash está desativada antes de falar com o SD
+        //digitalWrite(W25Q16_CS_PIN, HIGH);
+        //SPI.beginTransaction(SPISettings(400000, MSBFIRST, SPI_MODE0));
+        //SPI.transfer(0xFF);
+        //SPI.endTransaction();
+        // -------------------------------------------
+        vTaskDelay(100 / portTICK_PERIOD_MS);
       }
     }
 
@@ -964,10 +987,15 @@ bool loadState() {
 // Saves the configuration to a file
 bool saveState() {
   if (xSemaphoreTake(sdMutex, portMAX_DELAY) == pdTRUE) {
+    log_println("trava0");
     if (!SD.rename("/state.json", "/state_old.json")) {
+      log_println("trava1");
       xSemaphoreGive(sdMutex);  // Devolve antes de sair
+      log_println("trava2");
       return false;
+      log_println("trava3");
     }
+    log_println("trava4");
     // Open file for writing
     File file = SD.open("/state.json", FILE_WRITE);
     if (!file) {
@@ -1001,6 +1029,7 @@ bool saveState() {
       return false;
     }
     xSemaphoreGive(sdMutex);
+    log_println("Run state salvo!");
     return true;
   }
   return false;
@@ -1819,7 +1848,6 @@ void core_menu() {
             st.t_run = ini.unixtime();
             last_s_time = 0;
             saveState();
-            log_println("Run state salvo!");
 
             String line = "";
 
@@ -3694,9 +3722,9 @@ void loop(void) {
     dumpFlashToSD();  // Esvazia o cache para o SD
                       // SÓ AGORA incrementa o número do run
     st.n_run++;
-    saveState();
     log_print("Proximo run sera: ");
     log_println(st.n_run);
+    saveState();
   }
   // ------------------------------
 
