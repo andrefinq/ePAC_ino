@@ -636,7 +636,7 @@ void dumpFlashToSD() {
         // Sucesso! Limpa o cache da flash
         cache_write_ptr = 0;
         preferences.putULong(NVS_WRITE_PTR_KEY, cache_write_ptr);
-        //flash.eraseSector(0);
+        flash.eraseSector(0);
         // --- TRUQUE DE LIMPEZA DO BARRAMENTO SPI ---
         // Garante que a Flash está desativada antes de falar com o SD
         //digitalWrite(W25Q16_CS_PIN, HIGH);
@@ -745,6 +745,7 @@ void IRAM_ATTR isr_powerFail() {
   // Apenas levante a bandeira.
   g_powerFailed = true;
 }
+
 void handlePowerFailure() {
   // 1. Trava de segurança (só executa uma vez)
   static bool hasRun = false;
@@ -754,33 +755,56 @@ void handlePowerFailure() {
   // 2. DESLIGUE PERIFÉRICOS IMEDIATAMENTE!
   lcd.clear();
   lcd.print("FALHA ENERGIA!");
-  lcd.setBacklight(LOW);  // <-- Economiza muita energia
+  lcd.setBacklight(LOW); // Economiza muita energia
 
   if (cfg.GFX_0) u8g2_t1.setPowerSave(1);  // Desliga GFX 0
   if (cfg.GFX_1) u8g2_s1.setPowerSave(1);  // Desliga GFX 1
   if (cfg.GFX_2) u8g2_s2.setPowerSave(1);  // Desliga GFX 2
 
-  log_println("Desligando SD card...");
-  if (xSemaphoreTake(sdMutex, portMAX_DELAY) == pdTRUE) {
-    SD.end();
-    xSemaphoreGive(sdMutex);  // Devolve o mutex após as checagens
-  }
-
   log_println("!!! FALHA DE ENERGIA DETECTADA !!!");
 
-  // 3. FAÇA O DUMP DA RAM (A ÚNICA COISA QUE DÁ TEMPO)
+  // 3. FAÇA O DUMP DA RAM PRIMEIRO (Enquanto o SPI ainda está 100% OK)
   log_println("Salvando buffer de RAM para Flash Externa...");
   lcd.setCursor(0, 1);
   lcd.print("Salvando RAM...");
+  dumpRamToFlash();  
 
-  dumpRamToFlash();  //
+  // 4. DESLIGA O SD CARD E ISOLA O BARRAMENTO SPI
+  log_println("Desligando e isolando SD card...");
+  if (xSemaphoreTake(sdMutex, portMAX_DELAY) == pdTRUE) {
+    SD.end(); // Desmonta o sistema de arquivos
+    
+    // Garante que o Cartão SD seja ignorado fisicamente
+    pinMode(sdcard_pin, OUTPUT);
+    digitalWrite(sdcard_pin, HIGH); 
+    
+    // Envia clocks vazios para desativar qualquer transação fantasma
+    SPI.beginTransaction(SPISettings(400000, MSBFIRST, SPI_MODE0));
+    SPI.transfer(0xFF);
+    SPI.endTransaction();
+    
+    SPI.end(); // Desliga o periférico SPI completamente do ESP32
+    xSemaphoreGive(sdMutex);
+  }
+  // --- DRENO AGRESSIVO PARA MATAR O ESTADO "ZUMBI" DO SD ---
+  // Transforma os pinos que enviam sinal ao SD em drenos para o GND
+  pinMode(sdcard_pin, OUTPUT);
+  pinMode(18, OUTPUT); // SCK padrão do VSPI
+  pinMode(23, OUTPUT); // MOSI padrão do VSPI
+  
+  digitalWrite(sdcard_pin, LOW);
+  digitalWrite(18, LOW);
+  digitalWrite(23, LOW);
 
   log_println("Buffer de RAM salvo. Desligando.");
   lcd.setCursor(0, 1);
   lcd.print("RAM Salva. Bye.");
-  delay(t_delay);
+  
 
-  // 4. Entre em sono profundo para parar
+  // Configura para acordar (resetar) quando o pino voltar para LOW (Energia ligada)
+  esp_sleep_enable_ext0_wakeup((gpio_num_t)POWER_FAIL_PIN, 0); 
+
+  delay(t_delay);
   esp_deep_sleep_start();
 }
 
@@ -3086,6 +3110,9 @@ void handleWifiSave(AsyncWebServerRequest *request) {
 
 void setup(void) {
 
+  // Devolve o CS para HIGH para a biblioteca não bugar depois
+  digitalWrite(sdcard_pin, HIGH);
+  // ----------------------------------------------------------
   sdMutex = xSemaphoreCreateMutex();
   // --- INÍCIO DA CORREÇÃO DE SPI (Tentativa V3) ---
   if (xSemaphoreTake(sdMutex, portMAX_DELAY) == pdTRUE) {
